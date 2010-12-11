@@ -1,7 +1,7 @@
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 from handlers import *
-from model import FormField
+from model import *
 
 class Form(Handler):
   #override
@@ -25,6 +25,7 @@ class Form(Handler):
           fields.append(FormField().fromDict(body['name'], field))
         for field in fields:
           field.put()
+        self.success({"name": body['name']})
       except FormFieldException as e:
         self.fail(e.value)
   #override
@@ -39,7 +40,7 @@ class Form(Handler):
         if not field.form in results:
           results[field.form] = {}
         results[field.form][field.name] = {'type': field.fieldType, 'required': field.required}
-    return results
+    self.success(results)
 
 class FormElement(Handler):
   #override
@@ -52,7 +53,16 @@ class FormElement(Handler):
       for field in query.fetch(20, offset):
         offset = offset + 1
         results[field.name] = {'type': field.fieldType, 'required': field.required}
-    return results
+    self.success(results)
+  #override
+  def jsonDelete(self, element, subelement):
+    query = FormField.all().filter('form = ', element)
+    if query.count() == 0:
+      self.fail("no such forms")
+    else:
+      for field in query.fetch(50):
+        field.delete()
+      self.success()
   #override
   def jsonPut(self, body, element, subelement):
     if not 'fields' in body:
