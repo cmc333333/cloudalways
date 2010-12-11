@@ -2,16 +2,34 @@ from google.appengine.ext import webapp
 import json
 
 class Handler(webapp.RequestHandler):
-  def post(self):
+  def post(self, element=None, subelement=None):
     if not self.__jsonReq():
       self.fail("Must have content-type: application/json")
     else:
       try:
         body = json.loads(self.request.body)
-        self.jsonPost(body)
+        self.jsonPost(body, element, subelement)
       except ValueError:
         self.fail("Invalid JSON")
-  def jsonPost(self, body):
+  def jsonPost(self, body, element, subelement):
+    self.error(405)
+  def get(self, element=None, subelement=None):
+    ret = self.jsonGet(element, subelement)
+    if ret:
+      self.response.headers['Content-Type'] = 'application/json'
+      self.response.out.write(json.dumps(ret))
+  def jsonGet(self, element, subelement):
+    self.error(405)
+  def put(self, element=None, subelement=None):
+    if not self.__jsonReq():
+      self.fail("Must have content-type: application/json")
+    else:
+      try:
+        body = json.loads(self.request.body)
+        self.jsonPut(body, element, subelement)
+      except ValueError:
+        self.fail("Invalid JSON")
+  def jsonPut(self, body, element, subelement):
     self.error(405)
   def __jsonReq(self):
     for (key, value) in self.request.headers.items():
