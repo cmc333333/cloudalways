@@ -59,6 +59,40 @@ class TestFormElement(unittest.TestCase):
 
     (success, body) = self.proxy.delete("form/person")
     self.assertTrue(success)
+  def test_retrieve_bad(self):
+    """Retrieval of bad content is a 404"""
+    (success, body) = self.proxy.get("form/asdsdsafdf")
+    self.assertFalse(success)
+  def test_retrieve(self):
+    """Retrieval works"""
+    (success, body) = self.proxy.put("form/person", {"first": {"type": "string"}, "last": {"type": "string"}})
+    self.assertTrue(success)
+    (success, body) = self.proxy.get("form/person")
+    self.assertTrue(success)
+    self.assertTrue('first' in body)
+    self.assertTrue('type' in body['first'])
+    self.assertEqual(body['first']['type'], 'string')
+    self.assertTrue('last' in body)
+    self.assertTrue('type' in body['last'])
+    self.assertEqual(body['last']['type'], 'string')
+
+    (success, body) = self.proxy.delete("form/person")
+    self.assertTrue(success)
+  def test_delete_bad(self):
+    """Delete of bad content is a 404"""
+    (success, body) = self.proxy.delete("form/asdsdsafdf")
+    self.assertFalse(success)
+  def test_delete(self):
+    """Correct use of delete"""
+    (success, body) = self.proxy.put("form/person", {"first": {"type": "string"}, "last": {"type": "string"}})
+    self.assertTrue(success)
+    (success, body) = self.proxy.get("form/person")
+    self.assertTrue(success)
+
+    (success, body) = self.proxy.delete("form/person")
+    self.assertTrue(success)
+    (success, body) = self.proxy.get("form/person")
+    self.assertFalse(success)
 
 if __name__ == '__main__':
   unittest.main()

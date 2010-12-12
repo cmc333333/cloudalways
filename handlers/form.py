@@ -24,13 +24,12 @@ class FormElement(Handler):
   def jsonGet(self, element, subelement):
     query = FormField.all().filter('form =', element)
     results = {}
-    offset = 0
-    count = query.count()
-    while offset < count:
-      for field in query.fetch(20, offset):
-        offset = offset + 1
-        results[field.name] = {'type': field.fieldType, 'required': field.required}
-    self.success(results)
+    for field in query.fetch(50): # Each form may have at most 50 fields
+      results[field.name] = {'type': field.fieldType, 'required': field.required}
+    if len(results) == 0:
+      self.error(404)
+    else:
+      self.success(results)
   #override
   def jsonDelete(self, element, subelement):
     query = FormField.all().filter('form = ', element)
@@ -51,7 +50,7 @@ class FormElement(Handler):
       # verify that every field has a type and that said type is valid
       valid = True
       for field in fields:
-        if 'type' not in body[field]:
+        if not isinstance(body[field], dict) or 'type' not in body[field]:
           valid = False
           self.fail(field + ' does not have a type')
           break
