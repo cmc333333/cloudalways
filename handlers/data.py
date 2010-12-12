@@ -69,17 +69,27 @@ class DataElement(Handler):
       data.append(obj)
     self.success({'data': data})
 
-"""
-class ShapeSubelement(Handler):
+class DataSubelement(Handler):
   #override
-  def jsonGet(self, shape, field):
-    query = ShapeField.all().filter('shape =', shape).filter('name =', field)
-    if query.count() == 0:
+  def jsonGet(self, shape, key):
+    fields = ShapeField.all().filter('shape =', shape).fetch(50)
+    try:
+      key = int(key)
+    except ValueError:
+      self.error(404)
+      return
+    datum = Datum.get_by_id(key)
+    if len(fields) == 0 or not datum or datum.shape != shape:
       self.error(404)
     else:
-      field = query.fetch(1)[0]
-      result = {'type': field.fieldType, 'required': field.required}
-      self.success(result)
+      obj = {}
+      for field in fields:
+        try:
+          obj[field.name] = getattr(datum, field.name)
+        except AttributeError:
+          obj[field.name] = None
+      obj['shape'] = datum.shape
+      self.success(obj)
   #override
   def jsonDelete(self, shape, field):
     query = ShapeField.all().filter('shape = ', shape).filter('name =', field)
@@ -103,10 +113,10 @@ class ShapeSubelement(Handler):
       else:
         ShapeField(shape=shape, name=field, fieldType=body['type']).put()
       self.success()
-"""
 
 application = webapp.WSGIApplication([
   ('/data', Data),
+  (r'/data/(.*)/(.*)', DataSubelement),
   (r'/data/(.*)', DataElement)
   ], debug=True)
 
