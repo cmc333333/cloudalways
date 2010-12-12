@@ -12,15 +12,10 @@ class ShapeField(db.Model):
   name = db.StringProperty()
   fieldType = db.StringProperty()
   required = db.BooleanProperty()
-  def pythonType(self):
+  def validInput(self, value):
     if self.fieldType == 'string':
-      return unicode
-    else:
-      return None
-  def setValidations(self, fieldType):
-    fieldType = fieldType.lower()
-    if fieldType == "string":
-      self.validations = ['string']
+      return isinstance(value, unicode)
+    return False
   #todo
   def updateType(self, newType):
     fieldType = newType

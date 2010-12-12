@@ -4,20 +4,26 @@ from handlers import *
 from model import *
 import logging
 
-"""
 class Data(Handler):
   #override
-  def jsonGet(self, element, subelement):
-    query = Data.all().order('shape')
-    count = query.count()
-    while offset < count:
-      for field in query.fetch(20, offset):
-        offset = offset + 1
-        if not field.shape in results:
-          results[field.shape] = {}
-        results[field.shape][field.name] = {'type': field.fieldType, 'required': field.required}
-    self.success(results)
-"""
+  def jsonGet(self, _, _1):
+    dataQuery = Datum.all().order('shape')
+    data = []
+    shapes = {}
+    offset = self.request.get_range('offset', 0, default=0)
+    for datum in dataQuery.fetch(20, offset):
+      obj = {}
+      if not datum.shape in shapes:
+        shapes[datum.shape] = ShapeField.all().filter('shape =', datum.shape).fetch(50)
+      for field in shapes[datum.shape]:
+        try:
+          obj[field.name] = getattr(datum, field.name)
+        except AttributeError:
+          obj[field.name] = None
+      if len(obj) > 0:
+        obj['shape'] = datum.shape
+        data.append(obj)
+    self.success({'data': data})
 
 class DataElement(Handler):
   #override
@@ -34,70 +40,34 @@ class DataElement(Handler):
         valid = True
         for field in query.fetch(50):
           if field.name in fields:
-            if not isinstance(body[field.name], field.pythonType()):
+            if not field.validInput(body[field.name]):
               valid = False
-              self.fail("bad type for " + field.name)
+              self.fail("bad input for " + field.name)
               break
             setattr(datum, field.name, body[field.name])
         if valid:
           datum.put()
           result = {"id": str(datum.key().id_or_name())}
           self.success(result)
-  """
   #override
-  def jsonGet(self, shape, subelement):
-    query = ShapeField.all().filter('shape =', shape)
-    results = {}
-    for field in query.fetch(50): # Each shape may have at most 50 fields
-      results[field.name] = {'type': field.fieldType, 'required': field.required}
-    if len(results) == 0:
-      self.error(404)
-    else:
-      self.success(results)
-  #override
-  def jsonDelete(self, shape, subelement):
-    query = ShapeField.all().filter('shape = ', shape)
-    if query.count() == 0:
-      self.error(404)
-    else:
-      for field in query.fetch(50):
-        field.delete()
-      self.success()
-  #override
-  def jsonPut(self, body, shape, subelement):
-    fields = body.keys()
+  def jsonGet(self, shape, _):
+    fields = ShapeField.all().filter('shape =', shape).fetch(50)
     if len(fields) == 0:
-      self.fail('must have at least one field')
-    elif len(fields) > 50:
-      self.fail('each shape may have at most 50 fields')
+      self.error(404)
     else:
-      # verify that every field has a type and that said type is valid
-      valid = True
+      dataQuery = Datum.all().filter('shape =', shape)
+      data = []
+      offset = self.request.get_range('offset', 0, default=0)
+    for datum in dataQuery.fetch(20, offset):
+      obj = {}
       for field in fields:
-        if not isinstance(body[field], dict) or 'type' not in body[field]:
-          valid = False
-          self.fail(field + ' does not have a type')
-          break
-        if body[field]['type'] not in ShapeFieldTypes:
-          valid = False
-          self.fail(str(body[field]['type']) + ' is an invalid type')
-          break
-
-      if valid:
-        existing = ShapeField.all().filter('shape =', shape).fetch(50)
-        new = body.keys()
-        for field in existing:
-          if field.name in fields: # Modifying
-            new.remove(field.name)
-            field.updateType(body[field.name]['type']).put()
-          else:
-            field.delete()
-        # Create the new ones
-        for field in new:
-          ShapeField(shape=shape, name=field, fieldType=body[field]['type']).put()
-
-        self.success()
-  """
+        try:
+          obj[field.name] = getattr(datum, field.name)
+        except AttributeError:
+          obj[field.name] = None
+      obj['shape'] = datum.shape
+      data.append(obj)
+    self.success({'data': data})
 
 """
 class ShapeSubelement(Handler):
@@ -136,6 +106,7 @@ class ShapeSubelement(Handler):
 """
 
 application = webapp.WSGIApplication([
+  ('/data', Data),
   (r'/data/(.*)', DataElement)
   ], debug=True)
 
