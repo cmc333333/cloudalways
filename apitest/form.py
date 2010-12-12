@@ -94,5 +94,54 @@ class TestFormElement(unittest.TestCase):
     (success, body) = self.proxy.get("form/person")
     self.assertFalse(success)
 
+class TestFormSubelement(unittest.TestCase):
+  def setUp(self):
+    self.proxy = Server()
+    (success, body) = self.proxy.put("form/pet", {"name": {"type": "string"}})
+    self.assertTrue(success)
+  def tearDown(self):
+    (success, body) = self.proxy.delete("form/pet")
+    self.assertTrue(success)
+  def test_put_no_body(self):
+    """Creation with no body should return an error"""
+    (success, body) = self.proxy.put("form/pet/color")
+    self.assertFalse(success)
+    (success, body) = self.proxy.put("form/pet/color", {})
+    self.assertFalse(success)
+  def test_put_bad_fields(self):
+    """Creation with bad fields"""
+    (success, body) = self.proxy.put("form/pet/color", {"type": "something"})
+    self.assertFalse(success)
+    (success, body) = self.proxy.put("form/pet/color", {"type": 1})
+    self.assertFalse(success)
+  def test_put(self):
+    """Successful creation"""
+    (success, body) = self.proxy.put("form/pet/color", {"type": "string"})
+    self.assertTrue(success)
+  def test_retrieve_bad(self):
+    """Retrieval of bad content is a 404"""
+    (success, body) = self.proxy.get("form/pet/asdsdsafdf")
+    self.assertFalse(success)
+  def test_retrieve(self):
+    """Retrieval works"""
+    (success, body) = self.proxy.get("form/pet/name")
+    self.assertTrue(success)
+    self.assertTrue('type' in body)
+    self.assertEqual(body['type'], 'string')
+  def test_delete_bad(self):
+    """Delete of bad content is a 404"""
+    (success, body) = self.proxy.delete("form/pet/asdsdsafdf")
+    self.assertFalse(success)
+  def test_delete(self):
+    """Correct use of delete"""
+    (success, body) = self.proxy.put("form/pet/color", {"type": "string"})
+    self.assertTrue(success)
+    (success, body) = self.proxy.get("form/pet/color")
+    self.assertTrue(success)
+
+    (success, body) = self.proxy.delete("form/pet/color")
+    self.assertTrue(success)
+    (success, body) = self.proxy.get("form/pet/color")
+    self.assertFalse(success)
 if __name__ == '__main__':
   unittest.main()

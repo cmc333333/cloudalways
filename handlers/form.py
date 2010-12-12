@@ -21,8 +21,8 @@ class Form(Handler):
 
 class FormElement(Handler):
   #override
-  def jsonGet(self, element, subelement):
-    query = FormField.all().filter('form =', element)
+  def jsonGet(self, form, subelement):
+    query = FormField.all().filter('form =', form)
     results = {}
     for field in query.fetch(50): # Each form may have at most 50 fields
       results[field.name] = {'type': field.fieldType, 'required': field.required}
@@ -31,10 +31,10 @@ class FormElement(Handler):
     else:
       self.success(results)
   #override
-  def jsonDelete(self, element, subelement):
-    query = FormField.all().filter('form = ', element)
+  def jsonDelete(self, form, subelement):
+    query = FormField.all().filter('form = ', form)
     if query.count() == 0:
-      self.fail("no such forms")
+      self.error(404)
     else:
       for field in query.fetch(50):
         field.delete()
@@ -56,7 +56,7 @@ class FormElement(Handler):
           break
         if body[field]['type'] not in FormFieldTypes:
           valid = False
-          self.fail(body[field]['type'] + ' is an invalid type')
+          self.fail(str(body[field]['type']) + ' is an invalid type')
           break
 
       if valid:
@@ -74,8 +74,43 @@ class FormElement(Handler):
 
         self.success()
 
+class FormSubelement(Handler):
+  #override
+  def jsonGet(self, form, field):
+    query = FormField.all().filter('form =', form).filter('name =', field)
+    if query.count() == 0:
+      self.error(404)
+    else:
+      field = query.fetch(1)[0]
+      result = {'type': field.fieldType, 'required': field.required}
+      self.success(result)
+  #override
+  def jsonDelete(self, form, field):
+    query = FormField.all().filter('form = ', form).filter('name =', field)
+    if query.count() == 0:
+      self.error(404)
+    else:
+      query.fetch(1)[0].delete()
+      self.success()
+  #override
+  def jsonPut(self, body, form, field):
+    if 'type' not in body:
+      valid = False
+      self.fail(field + ' does not have a type')
+    elif body['type'] not in FormFieldTypes:
+      valid = False
+      self.fail(str(body['type']) + ' is an invalid type')
+    else:
+      existing = FormField.all().filter('form =', form).filter('name =', field).fetch(1)
+      if len(existing) > 0:
+        existing[0].updateType(body['type']).put()
+      else:
+        FormField(form=form, name=field, fieldType=body['type']).put()
+      self.success()
+
 application = webapp.WSGIApplication([
   ('/form', Form),
+  (r'/form/(.*)/(.*)', FormSubelement),
   (r'/form/(.*)', FormElement)
   ], debug=True)
 
