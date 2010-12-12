@@ -2,32 +2,9 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 from handlers import *
 from model import *
+import logging
 
 class Form(Handler):
-  #override
-  def jsonPost(self, body, element, subelement):
-    if not 'name' in body:
-      self.fail('"name" must be in the json body')
-    elif not isinstance(body['name'], unicode):
-      self.fail('"name" must be a string')
-    elif not 'fields' in body:
-      self.fail('"fields" must be in the json body')
-    elif not isinstance(body['fields'], list):
-      self.fail('"fields" must be an array')
-    elif len(body['fields']) == 0:
-      self.fail('"fields" must have length > 0')
-    elif FormField.all().filter('form =', body['name']).count() > 0:
-      self.fail('Form with the name ' + body['name'] + ' already exists')
-    else:
-      try:
-        fields = []
-        for field in body['fields']:
-          fields.append(FormField().fromDict(body['name'], field))
-        for field in fields:
-          field.put()
-        self.success({"name": body['name']})
-      except FormFieldException as e:
-        self.fail(e.value)
   #override
   def jsonGet(self, element, subelement):
     results = {}
@@ -64,38 +41,39 @@ class FormElement(Handler):
         field.delete()
       self.success()
   #override
-  def jsonPut(self, body, element, subelement):
-    if not 'fields' in body:
-      self.fail('"fields" must be in the json body')
-    elif not isinstance(body['fields'], dict):
-      self.fail('"fields" must be an object')
-    elif len(body['fields']) == 0:
-      self.fail('"fields" must have length > 0')
-    elif len(body['fields']) > 50:
+  def jsonPut(self, body, form, subelement):
+    fields = body.keys()
+    if len(fields) == 0:
+      self.fail('must have at least one field')
+    elif len(fields) > 50:
       self.fail('each form may have at most 50 fields')
     else:
-      try:
-        existing = FormField.all().filter('form =', element).fetch(100)  # <= 50 in the db <= 50 new
-        new = body['fields'].keys()
-        toDelete = []
-        toSave = []
+      # verify that every field has a type and that said type is valid
+      valid = True
+      for field in fields:
+        if 'type' not in body[field]:
+          valid = False
+          self.fail(field + ' does not have a type')
+          break
+        if body[field]['type'] not in FormFieldTypes:
+          valid = False
+          self.fail(body[field]['type'] + ' is an invalid type')
+          break
+
+      if valid:
+        existing = FormField.all().filter('form =', form).fetch(50)
+        new = body.keys()
         for field in existing:
-          if field.name in body['fields']: # Modifying
+          if field.name in fields: # Modifying
             new.remove(field.name)
-            field.fromDict(field.form, body['fields'][field.name], True)
-            toSave.append(field)
+            field.updateType(body[field.name]['type']).put()
           else:
-            toDelete.append(field)
+            field.delete()
         # Create the new ones
         for field in new:
-          toSave.append(FormField().fromDict(body['name'], field))
+          FormField(form=form, name=field, fieldType=body[field]['type']).put()
 
-        for field in toSave:
-          field.put()
-        for field in toDelete:
-          field.deleteAndUpdate()
-      except FormFieldException as e:
-        self.fail(e.value)
+        self.success()
 
 application = webapp.WSGIApplication([
   ('/form', Form),

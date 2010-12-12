@@ -4,57 +4,13 @@ from common import Server
 class TestForm(unittest.TestCase):
   def setUp(self):
     self.proxy = Server()
-  def test_create_no_body(self):
-    """Creation with no body should return an error"""
-    (success, body) = self.proxy.post("form")
-    self.assertFalse(success)
+  def test_post(self):
     (success, body) = self.proxy.post("form", {})
     self.assertFalse(success)
-  def test_create_no_name(self):
-    """Creation with no name should return an error"""
-    (success, body) = self.proxy.post("form", {"fields": [{"name": "first", "type": "string"}]})
-    self.assertFalse(success)
-  def test_create_no_fields(self):
-    """Creation with no fields should return an error"""
-    (success, body) = self.proxy.post("form", {"name": "person"})
-    self.assertFalse(success)
-  def test_create_bad_fields(self):
-    """Creation with bad fields"""
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": "something"})
-    self.assertFalse(success)
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": {"name": "first", "type": "string"}})
-    self.assertFalse(success)
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": ["something"]})
-    self.assertFalse(success)
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": [{"name": "first"}]})
-    self.assertFalse(success)
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": [{"name": "first", "type": "string"},
-      {"name": "last"}]})
-    self.assertFalse(success)
-  def test_create(self):
-    """Successful creation"""
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": [{"name": "first", "type": "string"},
-      {"name": "last", "type": "string"}]})
-    self.assertTrue(success)
-    self.assertTrue('name' in body)
-    self.assertEqual(body['name'], 'person')
-
-    (success, body) = self.proxy.delete("form/person")
-    self.assertTrue(success)
-  def test_create_duplicates(self):
-    """Try to create duplicate form"""
-    (success, body) = self.proxy.post("form", {"name": "pet", "fields": [{"name": "name", "type": "string"}]})
-    self.assertTrue(success)
-    (success, body) = self.proxy.post("form", {"name": "pet", "fields": [{"name": "name", "type": "string"}]})
-    self.assertFalse(success)
-
-    (success, body) = self.proxy.delete("form/pet")
-    self.assertTrue(success)
   def test_retrieve(self):
-    (success, body) = self.proxy.post("form", {"name": "person", "fields": [{"name": "first", "type": "string"},
-      {"name": "last", "type": "string"}]})
+    (success, body) = self.proxy.put("form/person", {"first" : {"type": "string"}, "last": {"type": "string"}})
     self.assertTrue(success)
-    (success, body) = self.proxy.post("form", {"name": "pet", "fields": [{"name": "name", "type": "string"}]})
+    (success, body) = self.proxy.put("form/pet", {"name": {"type": "string"}})
     self.assertTrue(success)
     (success, body) = self.proxy.get("form")
     self.assertTrue(success)
@@ -80,6 +36,29 @@ class TestForm(unittest.TestCase):
   def test_delete(self):
     (success, body) = self.proxy.delete("form")
     self.assertFalse(success)
+
+class TestFormElement(unittest.TestCase):
+  def setUp(self):
+    self.proxy = Server()
+  def test_put_no_body(self):
+    """Creation with no body should return an error"""
+    (success, body) = self.proxy.put("form/person")
+    self.assertFalse(success)
+    (success, body) = self.proxy.put("form/person", {})
+    self.assertFalse(success)
+  def test_put_bad_fields(self):
+    """Creation with bad fields"""
+    (success, body) = self.proxy.put("form/person", {"name": "something"})
+    self.assertFalse(success)
+    (success, body) = self.proxy.put("form/person", {"name": {"type": "string"}, "other": 2})
+    self.assertFalse(success)
+  def test_put(self):
+    """Successful creation"""
+    (success, body) = self.proxy.put("form/person", {"first": {"type": "string"}, "last": {"type": "string"}})
+    self.assertTrue(success)
+
+    (success, body) = self.proxy.delete("form/person")
+    self.assertTrue(success)
 
 if __name__ == '__main__':
   unittest.main()
