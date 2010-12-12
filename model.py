@@ -3,15 +3,20 @@ from google.appengine.api import users
 
 class Datum(db.Expando):
   #user = db.UserProperty()
-  form = db.StringProperty()
+  shape = db.StringProperty()
 
-FormFieldTypes = ["string"]
+ShapeFieldTypes = ["string"]
 
-class FormField(db.Model):
-  form = db.StringProperty()
+class ShapeField(db.Model):
+  shape = db.StringProperty()
   name = db.StringProperty()
   fieldType = db.StringProperty()
   required = db.BooleanProperty()
+  def pythonType(self):
+    if self.fieldType == 'string':
+      return unicode
+    else:
+      return None
   def setValidations(self, fieldType):
     fieldType = fieldType.lower()
     if fieldType == "string":
@@ -21,7 +26,7 @@ class FormField(db.Model):
     fieldType = newType
     return self
 
-class FormFieldException(Exception):
+class ShapeFieldException(Exception):
   def __init__(self, value):
     self.value = value
   def __str__(self):

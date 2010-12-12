@@ -4,5 +4,9 @@ runtime: python
 api_version: 1
 
 handlers:
-- url: /.*
-  script: handlers/form.py
+- url: /test.*
+  script: gaeunit.py
+- url: /shape.*
+  script: handlers/shape.py
+- url: /data.*
+  script: handlers/data.py
