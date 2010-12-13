@@ -22,6 +22,7 @@ class Data(Handler):
           obj[field.name] = None
       if len(obj) > 0:
         obj['shape'] = datum.shape
+        obj['id'] = datum.key().id()
         data.append(obj)
     self.success({'data': data})
 
@@ -45,9 +46,15 @@ class DataElement(Handler):
               self.fail("bad input for " + field.name)
               break
             setattr(datum, field.name, body[field.name])
+          elif field.required:
+            valid = False
+            self.fail(field.name + " is a required field")
+            break
+          else:
+            setattr(datum, field.name, None)
         if valid:
           datum.put()
-          result = {"id": str(datum.key().id_or_name())}
+          result = {"id": datum.key().id()}
           self.success(result)
   #override
   def jsonGet(self, shape, _):
@@ -66,20 +73,25 @@ class DataElement(Handler):
         except AttributeError:
           obj[field.name] = None
       obj['shape'] = datum.shape
+      obj['id'] = datum.key().id()
       data.append(obj)
     self.success({'data': data})
 
 class DataSubelement(Handler):
-  #override
-  def jsonGet(self, shape, key):
+  def __byShapeKey(self, shape, key):
     fields = ShapeField.all().filter('shape =', shape).fetch(50)
     try:
       key = int(key)
     except ValueError:
-      self.error(404)
-      return
+      return (None, fields)
     datum = Datum.get_by_id(key)
     if len(fields) == 0 or not datum or datum.shape != shape:
+      return (None, fields)
+    return (datum, fields)
+  #override
+  def jsonGet(self, shape, key):
+    (datum, fields) = self.__byShapeKey(shape, key)
+    if not datum:
       self.error(404)
     else:
       obj = {}
@@ -89,31 +101,34 @@ class DataSubelement(Handler):
         except AttributeError:
           obj[field.name] = None
       obj['shape'] = datum.shape
+      obj['id'] = datum.key().id()
       self.success(obj)
   #override
-  def jsonDelete(self, shape, field):
-    query = ShapeField.all().filter('shape = ', shape).filter('name =', field)
-    if query.count() == 0:
+  def jsonDelete(self, shape, key):
+    (datum, fields) = self.__byShapeKey(shape, key)
+    if not datum:
       self.error(404)
     else:
-      query.fetch(1)[0].delete()
+      datum.delete()
       self.success()
   #override
-  def jsonPut(self, body, shape, field):
-    if 'type' not in body:
-      valid = False
-      self.fail(field + ' does not have a type')
-    elif body['type'] not in ShapeFieldTypes:
-      valid = False
-      self.fail(str(body['type']) + ' is an invalid type')
+  def jsonPut(self, body, shape, key):
+    (datum, fields) = self.__byShapeKey(shape, key)
+    if not datum:
+      self.error(404)
     else:
-      existing = ShapeField.all().filter('shape =', shape).filter('name =', field).fetch(1)
-      if len(existing) > 0:
-        existing[0].updateType(body['type']).put()
-      else:
-        ShapeField(shape=shape, name=field, fieldType=body['type']).put()
-      self.success()
-
+      keys = body.keys()
+      valid = True
+      for field in fields:
+        if field.name in keys:
+          if not field.validInput(body[field.name]):
+            valid = False
+            self.fail("bad input for " + field.name)
+            break
+          setattr(datum, field.name, body[field.name])
+      if valid:
+        datum.put()
+        self.success()
 application = webapp.WSGIApplication([
   ('/data', Data),
   (r'/data/(.*)/(.*)', DataSubelement),

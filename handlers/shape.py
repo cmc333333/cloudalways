@@ -70,7 +70,7 @@ class ShapeElement(Handler):
             field.delete()
         # Create the new ones
         for field in new:
-          ShapeField(shape=shape, name=field, fieldType=body[field]['type']).put()
+          ShapeField(shape=shape, name=field, required=True, fieldType=body[field]['type']).put()
 
         self.success()
 
