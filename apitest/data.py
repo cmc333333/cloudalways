@@ -44,6 +44,10 @@ class TestDataElement(unittest.TestCase):
   def tearDown(self):
     (success, body) = self.proxy.delete("shape/pet")
     self.assertTrue(success)
+  def test_retrieve_invalid(self):
+    """Try to retrieve on element which do not exist"""
+    (success, body) = self.proxy.get("data/sdsdfdsfsdfds")
+    self.assertFalse(success)
   def test_retrieve(self):
     (success, body) = self.proxy.post("data/pet", {"name": "Spot"})
     self.assertTrue(success)
@@ -77,6 +81,8 @@ class TestDataElement(unittest.TestCase):
     self.assertFalse(success)
     (success, body) = self.proxy.post("data/pet", {"otherfield": "bob"})
     self.assertFalse(success)
+    (success, body) = self.proxy.post("data/pet", {"name": 123})
+    self.assertFalse(success)
   def test_create(self):
     (success, body) = self.proxy.post("data/pet", {"name": "Spot", "otherfield": "value"})
     self.assertTrue(success)
@@ -96,5 +102,76 @@ class TestDataElement(unittest.TestCase):
 
     (success, body) = self.proxy.delete("data/pet/" + str(dataId))
     self.assertTrue(success)
+class TestDataSubelement(unittest.TestCase):
+  def setUp(self):
+    self.proxy = Server()
+    (success, body) = self.proxy.put("shape/pet", {"name": {"type": "string"}})
+    self.assertTrue(success)
+    (success, body) = self.proxy.post("data/pet", {"name": "Spot"})
+    self.assertTrue(success)
+    self.assertTrue('id' in body)
+    self.dataId = body['id']
+  def tearDown(self):
+    (success, body) = self.proxy.delete("data/pet/" + str(self.dataId))
+    self.assertTrue(success)
+    (success, body) = self.proxy.delete("shape/pet")
+    self.assertTrue(success)
+  def test_retrieve_invalid(self):
+    """Try to retrieve on ids that do not exist"""
+    (success, body) = self.proxy.get("data/pet/aaaaaa")
+    self.assertFalse(success)
+    (success, body) = self.proxy.get("data/pet/999999999999")
+    self.assertFalse(success)
+  def test_retrieve(self):
+    (success, body) = self.proxy.get("data/pet/" + str(self.dataId))
+    self.assertTrue(success)
+    self.assertTrue('id' in body)
+    self.assertTrue('shape' in body)
+    self.assertTrue('name' in body)
+    self.assertEqual(body['id'], self.dataId)
+    self.assertEqual(body['shape'], 'pet')
+    self.assertEqual(body['name'], 'Spot')
+  def test_update_valid(self):
+    """ Cannot create with no fields"""
+    (success, body) = self.proxy.put("data/pet/" + str(self.dataId), {})
+    self.assertFalse(success)
+    (success, body) = self.proxy.put("data/pet/" + str(self.dataId), {"otherfield": "bob"})
+    self.assertFalse(success)
+    (success, body) = self.proxy.put("data/pet/" + str(self.dataId), {"name": 123})
+    self.assertFalse(success)
+  def test_update(self):
+    """Can update if correct"""
+    (success, body) = self.proxy.put("data/pet/" + str(self.dataId), {"name": "Shiloh", "otherfield": "value"})
+    self.assertTrue(success)
+
+    (success, body) = self.proxy.get("data/pet/" + str(self.dataId))
+    self.assertTrue(success)
+    self.assertTrue('id' in body)
+    self.assertTrue('shape' in body)
+    self.assertTrue('name' in body)
+    self.assertFalse('otherfield' in body)
+    self.assertEqual(body['id'], self.dataId)
+    self.assertEqual(body['shape'], 'pet')
+    self.assertEqual(body['name'], 'Shiloh')
+  def test_delete_invalid(self):
+    """Cannot delete an element which does not exist"""
+    (success, body) = self.proxy.delete("data/pet/aaaaaa")
+    self.assertFalse(success)
+    (success, body) = self.proxy.delete("data/pet/999999999999")
+    self.assertFalse(success)
+  def test_delete(self):
+    """Successful deletion"""
+    (success, body) = self.proxy.post("data/pet", {"name": "Tim"})
+    self.assertTrue(success)
+    self.assertTrue('id' in body)
+    dataId = body['id']
+    (success, body) = self.proxy.get("data/pet/" + str(dataId))
+    self.assertTrue(success)
+
+    (success, body) = self.proxy.delete("data/pet/" + str(dataId))
+    self.assertTrue(success)
+
+    (success, body) = self.proxy.get("data/pet/" + str(dataId))
+    self.assertFalse(success)
 if __name__ == '__main__':
   unittest.main()

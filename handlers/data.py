@@ -126,6 +126,12 @@ class DataSubelement(Handler):
             self.fail("bad input for " + field.name)
             break
           setattr(datum, field.name, body[field.name])
+        elif field.required:
+          valid = False
+          self.fail(field.name + " is a required field")
+          break
+        else:
+          setattr(datum, field.name, None)
       if valid:
         datum.put()
         self.success()
